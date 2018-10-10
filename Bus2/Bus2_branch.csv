@@ -1,0 +1,2 @@
+From_Bus,To_Bus,BR_R_PU,BR_X_PU,BR_B_PU,RateA_MVA,RateB_MVA,RateC_MVA,Tap,Shift,BR_Status,ANGMIN,ANGMAX
+1,2,0,0.13,0,20,20,20,0,0,1,-360,360

@@ -1,0 +1,3 @@
+Bus_Number,Bus_Type,PD_MW,QD_MVar,GS_MW,BS_MVar,BusArea,Vm,Va,BaseKV,LossZone,Vmax,Vmin
+1,3,0,0,0,0,1,1,0,230,1,1.05,0.95
+2,2,30,0,0,0,1,1,0,230,1,1.05,0.95

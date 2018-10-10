@@ -1,0 +1,6 @@
+NormalizedM 5
+NormalizedP 5e5
+Speedofsound 350
+Slacknode 1
+Slackpressure 5e5
+SpecificEnergy 50
