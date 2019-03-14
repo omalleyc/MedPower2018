@@ -44,8 +44,8 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     m.c        = pm.Var(m.comp_set ,bounds =  lambda m,i : (Compressors.Cmin[i],Compressors.Cmax[i]),initialize =1)
     m.mc_in    = pm.Var(m.comp_set ,bounds = (None,None),initialize=0) # Gas flow into compressor, i.e. out of node
     m.mc_out   = pm.Var(m.comp_set ,bounds = (None,None),initialize=0) # Gas flow out of compressor i.e., into node
-    m.mc       = pm.Var(m.comp_set ,bounds = (None,None),initialize=0)
-    m.GasLoad  = pm.Var(m.node_set ,bounds = (0,None)   ,initialize=0)
+    m.mc       = pm.Var(m.comp_set ,bounds = (0,None),initialize=0)
+    m.GasLoad  = pm.Var(m.node_set ,bounds = (None,None)   ,initialize=0)
     
     def PowerBal_constr(model,i):
         PowerBal = -Bus.PD_MW[i] \
@@ -161,6 +161,8 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     Compressor_min_Res     = dict([[i,np.round(m.mc_in[i].value,decimals=8)]   for i in m.mc_in])
     Compressor_mout_Res    = dict([[i,np.round(m.mc_out[i].value,decimals=8)]   for i in m.mc_out])
     
+    Nodes_load_Res       = dict([[i,np.round(m.GasLoad[i].value,decimals=8)]   for i in m.GasLoad])
+    
     Nodes_pi_Res       = dict([[i,np.round(m.pi[i].value,decimals=3)]   for i in m.pi])
     Pipes_mij_Res       = dict([[i,np.round(m.mij[i].value,decimals=3)]   for i in m.mij])
     
@@ -169,8 +171,9 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     min_str  = 'Coupled_Res_min'
     mout_str = 'Coupled_Res_mout'
     
-    mij_str  = 'Coupled_mij'
+    mij_str  = 'Coupled_Res_mij'
     pi_str   = 'Coupled_Res_pi'
+    load_str = 'Coupled_Res_load'
     
         
     Temp= {c_str    : pd.Series(Compressor_c_Res),
@@ -180,5 +183,9 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     Gasdata.Compressors    =  Gasdata.Compressors.assign(**Temp)
     
     Gasdata.Pipes    =  Gasdata.Pipes.assign(**{mij_str : pd.Series(Pipes_mij_Res)})
-    Gasdata.Nodes    =  Gasdata.Nodes.assign(**{pi_str  : pd.Series(Nodes_pi_Res)})
     
+    Temp={pi_str  : pd.Series(Nodes_pi_Res),
+          load_str: pd.Series(Nodes_load_Res)}
+    Gasdata.Nodes    =  Gasdata.Nodes.assign(**Temp)
+    
+    return m.objective()

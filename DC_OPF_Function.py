@@ -26,10 +26,10 @@ def DC_OPF(Elecdata):
     
     # If the OGF has been run and there are fixed values for the GFPPs change 
     # the limits
-    if 'OGF_P_output' in Elecdata.Gen.columns:
-        fn_max = lambda row:  np.where(np.isnan(row.OGF_P_output),row.Pmax_MW,row.OGF_P_output).item(0)
-        fn_min = lambda row:  np.where(np.isnan(row.OGF_P_output),row.Pmin_MW,row.OGF_P_output).item(0)
-    
+    if 'SS_OGF_P_output' in Elecdata.Gen.columns:
+        print('Fixing output of Gas Generators')
+        fn_max = lambda row:  np.where(row.FuelType!='Gas',row.Pmax_MW,row.SS_OGF_P_output).item(0)
+        fn_min = lambda row:  np.where(row.FuelType!='Gas',row.Pmin_MW,row.SS_OGF_P_output).item(0)
         Gen=Gen.assign(Pmax_MW=Gen.apply(fn_max,axis=1).values)
         Gen=Gen.assign(Pmin_MW=Gen.apply(fn_min,axis=1).values)
     
@@ -79,7 +79,7 @@ def DC_OPF(Elecdata):
     
     m.objective = pm.Objective(rule=DC_OPF_Obj, sense=pm.minimize, doc='Define objective function') 
     
-    opt = pm.SolverFactory('ipopt')
+    opt = pm.SolverFactory('gurobi')
     opt.options['print_level']=0     
     
     results = opt.solve(m, tee=True)
@@ -102,8 +102,8 @@ def DC_OPF(Elecdata):
     Branch_Res  = dict([[i,np.round(m.Pij[i].value,decimals=3)]   for i in m.Pij])
     Bus_Res     = dict([[i,np.round(m.th[i].value,decimals=3)]   for i in m.th])
     
-    if 'OGF_P_output' in Elecdata.Gen.columns:
-        Elecdata.Gen = Elecdata.Gen.assign(OGF_P_output=pd.Series(Gen_Res))
+    if 'SS_OGF_P_output' in Elecdata.Gen.columns:
+        Elecdata.Gen = Elecdata.Gen.assign(SS_OGF_P_output=pd.Series(Gen_Res))
         
     else:
         Elecdata.Gen    =  Elecdata.Gen.assign    (DC_OPF_RES=pd.Series(Gen_Res))
@@ -114,6 +114,8 @@ def DC_OPF(Elecdata):
     Elecdata.Params.DC_OPF_Obj = m.objective()
     
     Elecdata.Params.status=status
+    
+    return m.objective()
 
 # Code for getting Duals
 

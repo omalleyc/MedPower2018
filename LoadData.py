@@ -5,7 +5,22 @@ import numpy as np
 class expando(object):
     pass
 
-
+def Load_CaseGB():
+    # 2 Elec Bus and 2 Pipe with compressor
+    filename_e='GB_Elec'   
+    filename_g='GB_Gas'
+    filename_c='Coupling/Coupling_GB_Reduced'
+    
+    
+    Elecdata=ElecData(filename_e)
+    Gasdata=GasData(filename_g)
+    Gasdata.Params.Initialize_from='Flat_Start'
+    
+    # Increase the gas load until the system is stressed
+    Gasdata.Nodes.Load=2.15*Gasdata.Nodes.Load
+    CouplingData(filename_c,Elecdata,Gasdata)
+    
+    return Elecdata,Gasdata
 
 def Load_Case1():
     # 2 Elec Bus and 2 Pipe with compressor
@@ -16,7 +31,7 @@ def Load_Case1():
     
     Elecdata=ElecData(filename_e)
     Gasdata=GasData(filename_g)
-    
+    Gasdata.Params.Initialize_from='Flat_Start'
     CouplingData(filename_c,Elecdata,Gasdata)
     
     return Elecdata,Gasdata
@@ -28,7 +43,7 @@ def Load_Case2():
     
     Elecdata=ElecData(filename_e)
     Gasdata=GasData(filename_g)
-    
+    Gasdata.Params.Initialize_from='Flat_Start'
     CouplingData(filename_c,Elecdata,Gasdata)
     
     return Elecdata,Gasdata
@@ -42,7 +57,7 @@ def Load_Case2_v():
     
     Elecdata=ElecData(filename_e)
     Gasdata=GasData(filename_g)
-    
+    Gasdata.Params.Initialize_from='Flat_Start'
     CouplingData(filename_c,Elecdata,Gasdata)
     
     #Elecdata.Branch.RateA_MVA=1e3
@@ -58,7 +73,7 @@ def Load_Case5():
     
     Elecdata=ElecData(filename_e)
     Gasdata=GasData(filename_g)
-    
+    Gasdata.Params.Initialize_from='Flat_Start'
     CouplingData(filename_c,Elecdata,Gasdata)
     
     Elecdata.Bus['PD_MW']=0.75* Elecdata.Bus['PD_MW']
@@ -74,7 +89,7 @@ def Load_Case5_v():
     
     Elecdata=ElecData(filename_e)
     Gasdata=GasData(filename_g)
-    
+    Gasdata.Params.Initialize_from='Flat_Start'
     CouplingData(filename_c,Elecdata,Gasdata)
     
     # Adjustment to Original
@@ -134,7 +149,7 @@ def ElecData(filename):
     Elecdata.Params=Params
     
     # Drop the Unused Parameters
-    Elecdata.Gen.drop(['QG_MVar','QMax_MVar','VG_PU','PG_MW',
+    To_be_dropped=['QG_MVar','QMax_MVar','VG_PU','PG_MW',
                        'Qmin_MVar','MBase_MVA',
                        'StatusONOFF','PC1_MW',
                        'PC2_MW','QC1MIN_MVAR',
@@ -145,7 +160,10 @@ def ElecData(filename):
                        'AreaParticipationFactor',
                        'CostModel','StartupCost_USD',
                        'Shutdown_USD','No_CostParameters'
-                       ],axis=1,inplace=True)
+                       ]
+    for x in To_be_dropped:
+        if x in Elecdata.Gen.columns :
+            Elecdata.Gen.drop(x,axis=1,inplace=True)
     
     Elecdata.Branch.drop(['BR_R_PU','BR_B_PU',
                           'RateB_MVA','RateC_MVA',
@@ -234,15 +252,19 @@ def CouplingData(filename,Elecdata,Gasdata):
     
     Coupling=pd.read_csv(filename+'.csv')
     
+
+    
     
     Coupling.index=['Gen'+str(x) for x in Coupling.Gen_No.tolist()]
     Coupling.drop('Gen_No',axis=1,inplace=True)
     Coupling.Gas_Node=['Node'+str(x) for x in Coupling.Gas_Node.tolist()]
     
     Coupling=Coupling.assign(FuelType='Gas')
-
+    
+    Coupling.loc[:,'Power_to_Gas_Norm']=1/(Coupling.Eff*Gasdata.Params.SpecificEnergy*Gasdata.Params.NormalizedM)
+    Coupling.Power_to_Gas_Norm=Coupling.Power_to_Gas_Norm.replace(np.inf,0)
+    
     Elecdata.Gen=Elecdata.Gen.join(Coupling)
-    Elecdata.Gen.loc[:,'Power_to_Gas_Norm']=1/(Elecdata.Gen.Eff*Gasdata.Params.SpecificEnergy*Gasdata.Params.NormalizedM)
     
     
     return 
