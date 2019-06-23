@@ -121,7 +121,10 @@ def OGF_SS(Gasdata,Gen=pd.DataFrame()):
     m.objective = pm.Objective(rule=objective_rule, sense=pm.minimize, doc='Define objective function') 
     
     opt = pm.SolverFactory('ipopt')
-    opt.options['print_level']=0 
+    opt.options['print_level']=5
+    opt.options['tol']=1e-14
+    opt.options['constr_viol_tol']=1e-10
+    opt.options['nlp_scaling_method']='none'
     # Optimize
     results = opt.solve(m, tee=True)
  

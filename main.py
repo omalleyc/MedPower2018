@@ -26,7 +26,8 @@ import pandas as pd
 
 
 # Solve Coupled Problem for Reference
-Coupled_Function.CoupledOPFOGF(Elecdata,Gasdata)
+initial_from='Flat_Start' # Flat_Start or G_Optimal
+Coupled_Function.CoupledOPFOGF(Elecdata,Gasdata,initial_from)
 
 # Add the shedding Weight
 Elecdata.Gen=Elecdata.Gen.assign(ShedWeight=Elecdata.Gen.CostCoeff_1.rank(ascending=True))
@@ -93,4 +94,7 @@ print('Original OPF Objective ='+str(Obj_OPF))
 print('OPF after OGF Objective ='+str(Obj_OPF_OGF))
 print('Coupled Objective ='+str(Obj_Coupled))
 
+# Check what solution is if start from g_optimal result
+#initial_from='G_Optimal' # Flat_Start or G_Optimal
+#Coupled_Function.CoupledOPFOGF(Elecdata,Gasdata,initial_from)
 

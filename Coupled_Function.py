@@ -11,7 +11,11 @@ import numpy as np
 import pyomo.environ as pm
 from pyomo.opt import SolverStatus, TerminationCondition
 
-def CoupledOPFOGF(Elecdata,Gasdata):
+
+class expando(object):
+    pass
+
+def CoupledOPFOGF(Elecdata,Gasdata,initial_from):
             
     Gen    = Elecdata.Gen
     Branch = Elecdata.Branch
@@ -23,6 +27,9 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     Nodes=Gasdata.Nodes
     Params=Gasdata.Params
     
+    
+    Initial=Initial_Values(Elecdata,Gasdata,initial_from)
+    
     m = pm.ConcreteModel()
     
         
@@ -30,22 +37,22 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     m.branch_set = pm.Set(initialize=Branch.index.tolist())
     m.bus_set    = pm.Set(initialize=Bus.index.tolist())
     
-    m.P   = pm.Var(m.gen_set,bounds = lambda m,i : (Gen.Pmin_MW[i],Gen.Pmax_MW[i]), initialize=lambda m,i : (Gen.Pmin_MW[i]))
-    m.Pij = pm.Var(m.branch_set,bounds = lambda m,i : (-Branch.RateA_MVA[i], Branch.RateA_MVA[i]), initialize=0)
-    m.th  = pm.Var(m.bus_set,bounds = (-np.pi,np.pi),initialize=0)
+    m.P   = pm.Var(m.gen_set,bounds = lambda m,i : (Gen.Pmin_MW[i],Gen.Pmax_MW[i]), initialize=lambda m,i : Initial.Gen.loc[i,'P_init'])
+    m.Pij = pm.Var(m.branch_set,bounds = lambda m,i : (-Branch.RateA_MVA[i], Branch.RateA_MVA[i]), initialize=lambda m,i : Initial.Branch.loc[i,'Pij_init'])
+    m.th  = pm.Var(m.bus_set,bounds = (-np.pi,np.pi),initialize=lambda m,i : Initial.Bus.loc[i,'th_init'])
         
     # Sets
     m.node_set = pm.Set(initialize=Nodes.index.tolist())
     m.comp_set = pm.Set(initialize=Compressors.index.tolist())
     m.pipe_set = pm.Set(initialize=Pipes.index.tolist())
     
-    m.pi       = pm.Var(m.node_set ,bounds = lambda m,i : (Nodes.Pmin[i], Nodes.Pmax[i]), initialize=1)
-    m.mij      = pm.Var(m.pipe_set ,bounds = (None,None),initialize=0)
-    m.c        = pm.Var(m.comp_set ,bounds =  lambda m,i : (Compressors.Cmin[i],Compressors.Cmax[i]),initialize =1)
-    m.mc_in    = pm.Var(m.comp_set ,bounds = (None,None),initialize=0) # Gas flow into compressor, i.e. out of node
-    m.mc_out   = pm.Var(m.comp_set ,bounds = (None,None),initialize=0) # Gas flow out of compressor i.e., into node
-    m.mc       = pm.Var(m.comp_set ,bounds = (0,None),initialize=0)
-    m.GasLoad  = pm.Var(m.node_set ,bounds = (None,None)   ,initialize=0)
+    m.pi       = pm.Var(m.node_set ,bounds = lambda m,i : (Nodes.Pmin[i], Nodes.Pmax[i]), initialize= lambda m,i : Initial.Nodes.loc[i,'pi_init'])
+    m.mij      = pm.Var(m.pipe_set ,bounds = (None,None),initialize= lambda m,i : Initial.Pipes.loc[i,'mij_init'])
+    m.c        = pm.Var(m.comp_set ,bounds =  lambda m,i : (Compressors.Cmin[i],Compressors.Cmax[i]),initialize= lambda m,i : Initial.Comps.loc[i,'c_init'])
+    m.mc_in    = pm.Var(m.comp_set ,bounds = (None,None),initialize= lambda m,i : Initial.Comps.loc[i,'mc_in_init']) # Gas flow into compressor, i.e. out of node
+    m.mc_out   = pm.Var(m.comp_set ,bounds = (None,None),initialize= lambda m,i : Initial.Comps.loc[i,'mc_out_init']) # Gas flow out of compressor i.e., into node
+    m.mc       = pm.Var(m.comp_set ,bounds = (0,None),initialize= lambda m,i : Initial.Comps.loc[i,'mc_init'])
+    m.GasLoad  = pm.Var(m.node_set ,bounds = (None,None)   ,initialize= lambda m,i : Initial.Nodes.loc[i,'GasLoad_init'])
     
     def PowerBal_constr(model,i):
         PowerBal = -Bus.PD_MW[i] \
@@ -135,6 +142,8 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     
     # Optimize
     results = opt.solve(m, tee=True)
+    opt.options['tol']=1e-14
+    opt.options['nlp_scaling_method']='none'
     
     if (results.solver.status == SolverStatus.ok) and (results.solver.termination_condition == TerminationCondition.optimal):
         print('Model Solved to Optimality')
@@ -189,3 +198,63 @@ def CoupledOPFOGF(Elecdata,Gasdata):
     Gasdata.Nodes    =  Gasdata.Nodes.assign(**Temp)
     
     return m.objective()
+
+
+def Initial_Values(Elecdata,Gasdata,initial_from):
+    
+    Bus=pd.DataFrame(index=Elecdata.Bus.index.tolist())
+    Branch=pd.DataFrame(index=Elecdata.Branch.index.tolist())
+    Gen=pd.DataFrame(index=Elecdata.Gen.index.tolist())
+    
+    Nodes=pd.DataFrame(index=Gasdata.Nodes.index.tolist())
+    Pipes=pd.DataFrame(index=Gasdata.Pipes.index.tolist())
+    Comps=pd.DataFrame(index=Gasdata.Compressors.index.tolist())
+    # Default is nonoe
+    Bus['th_init']=None
+    Branch['Pij_init']=None
+    Gen['P_init']=None
+    Nodes['pi_init']=None
+    Nodes['GasLoad_init']=None
+    Comps['mc_in_init']=None
+    Comps['mc_out_init']=None
+    Comps['mc_init']=None
+    Comps['c_init']=None
+    Pipes['mij_init']=None
+    
+    if initial_from=='Flat_Start':
+        print('Initializing from Flat Start')
+        Bus['th_init']=0
+        Branch['Pij_init']=0
+        Gen['P_init']=Elecdata.Gen['Pmin_MW']
+        Nodes['pi_init']=1
+        Nodes['GasLoad_init']=0
+        Pipes['mij_init']=0
+        Comps['c_init']=1
+        Comps['mc_init']=0
+        Comps['mc_in_init']=0
+        Comps['mc_out_init']=0
+    elif initial_from=='G_Optimal':
+        print('Initializing from SS_OGF')
+        # ize from SS_OGF
+        Bus['th_init']=Elecdata.Bus['SS_OGF_th_output']
+        Branch['Pij_init']=Elecdata.Branch['SS_OGF_Pij_output']
+        Gen['P_init']=Elecdata.Gen['SS_OGF_P_output']
+        Nodes['pi_init']=Gasdata.Nodes['SS_OGF_Res_pi_wgen']
+        Nodes['GasLoad_init']=Gasdata.Nodes['SS_OGF_Res_load_wgen']
+        Pipes['mij_init']=Gasdata.Pipes['SS_OGF_Res_mij_wgen']
+        Comps['c_init']=Gasdata.Compressors['SS_OGF_Res_c_wgen']
+        Comps['mc_init']=Gasdata.Compressors['SS_OGF_Res_mc_wgen']
+        Comps['mc_in_init']=Gasdata.Compressors['SS_OGF_Res_min_wgen']
+        Comps['mc_out_init']=Gasdata.Compressors['SS_OGF_Res_mout_wgen']
+    else:
+        print('Initialized with none')
+        
+        
+    Initial=expando()
+    Initial.Nodes=Nodes
+    Initial.Pipes=Pipes
+    Initial.Comps=Comps
+    Initial.Bus=Bus
+    Initial.Gen=Gen
+    Initial.Branch=Branch
+    return Initial

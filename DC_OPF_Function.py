@@ -104,6 +104,8 @@ def DC_OPF(Elecdata):
     
     if 'SS_OGF_P_output' in Elecdata.Gen.columns:
         Elecdata.Gen = Elecdata.Gen.assign(SS_OGF_P_output=pd.Series(Gen_Res))
+        Elecdata.Bus = Elecdata.Bus.assign(SS_OGF_th_output=pd.Series(Bus_Res))
+        Elecdata.Branch = Elecdata.Branch.assign(SS_OGF_Pij_output=pd.Series(Branch_Res))
         
     else:
         Elecdata.Gen    =  Elecdata.Gen.assign    (DC_OPF_RES=pd.Series(Gen_Res))
