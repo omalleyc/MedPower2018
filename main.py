@@ -18,9 +18,10 @@ import pandas as pd
 # Choose A Case
 [Elecdata,Gasdata]=LoadData.Load_Case1() 
 [Elecdata,Gasdata]=LoadData.Load_Case2()
-#[Elecdata,Gasdata]=LoadData.Load_Case5()
+[Elecdata,Gasdata]=LoadData.Load_Case5()
 
 [Elecdata,Gasdata]=LoadData.Load_CaseGB()
+
 #[Elecdata,Gasdata]=LoadData.Load_Case2_v() # Variation on Case 2
 #[Elecdata,Gasdata]=LoadData.Load_Case5_v() # Variation on Case 5
 
@@ -38,9 +39,11 @@ DC_OPF_Function.DC_OPF(Elecdata)
 
 # Solve the robust Optimization
 print('\n\nFinding the feasibility region\n')
-#DC_OPF_RO_Function.DC_OPF_RO(Elecdata)
-#Elecdata.Gen.to_csv('Generators_w_Flex.csv')
-Elecdata.Gen=pd.read_csv('Generators_w_Flex.csv',index_col=0)
+
+# can read the flex set from a file if it was previously created
+DC_OPF_RO_Function.DC_OPF_RO(Elecdata)
+Elecdata.Gen.to_csv('Generators_w_Flex.csv')
+#Elecdata.Gen=pd.read_csv('Generators_w_Flex.csv',index_col=0)
 
 #DC_OPF_RO_Function.DC_OPF_RO_Col_Constraint_Gen(Elecdata)
 
@@ -93,6 +96,7 @@ print('=====================================================================')
 print('Original OPF Objective ='+str(Obj_OPF))
 print('OPF after OGF Objective ='+str(Obj_OPF_OGF))
 print('Coupled Objective ='+str(Obj_Coupled))
+
 
 # Check what solution is if start from g_optimal result
 #initial_from='G_Optimal' # Flat_Start or G_Optimal
