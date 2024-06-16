@@ -20,7 +20,7 @@ import pandas as pd
 [Elecdata,Gasdata]=LoadData.Load_Case2()
 [Elecdata,Gasdata]=LoadData.Load_Case5()
 
-[Elecdata,Gasdata]=LoadData.Load_CaseGB()
+#[Elecdata,Gasdata]=LoadData.Load_CaseGB()
 
 #[Elecdata,Gasdata]=LoadData.Load_Case2_v() # Variation on Case 2
 #[Elecdata,Gasdata]=LoadData.Load_Case5_v() # Variation on Case 5
